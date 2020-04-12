@@ -1,7 +1,6 @@
 // get the starting coordinates of the objects (nuclei)
 selectImage("binary_nuclei.tif");
-run("Set Measurements...", "  redirect=None decimal=2");
-run("Analyze Particles...", "display clear record");
+run("Particles8 ", "white show=Particles minimum=0 maximum=9999999 overwrite redirect=None");
 nucX=newArray(nResults);
 nucY=newArray(nResults);
 for (i=0; i<nucX.length; i++) {
@@ -11,8 +10,7 @@ for (i=0; i<nucX.length; i++) {
 
 // get the starting coordinates of the objects (cells)
 selectImage("binary_cell.tif");
-run("Set Measurements...", "  redirect=None decimal=2");
-run("Analyze Particles...", "display clear record");
+run("Particles8 ", "white show=Particles minimum=0 maximum=9999999 overwrite redirect=None");
 cellX=newArray(nResults);
 cellY=newArray(nResults);
 for (i=0; i<cellX.length; i++) {
@@ -23,49 +21,52 @@ for (i=0; i<cellX.length; i++) {
 // get the RCC image
 run("RCC8D UF Multi", "x=binary_nuclei.tif y=binary_cell.tif show=RCC5D details");
 selectImage("RCC");
-run("8-bit");
+
 getDimensions(widthRCC, heightRCC, channelsRCC, slicesRCC, framesRCC);
 
 // generate two 8-bit black images sizes as the binary images
 selectImage("binary_nuclei.tif");
-getDimensions(width, height, channels, slices, frames);
-newImage("nuc_count_mask", "8-bit Black", width, height, slices);
-newImage("cell_count_mask", "8-bit Black", width, height, slices);
+run("Duplicate...", "title=nuc_count_mask");
+run("16-bit");
+run("glasbey_inverted");
+selectWindow("binary_cell.tif");
+run("Duplicate...", "title=cell_count_mask");
+run("16-bit");
+run("glasbey_inverted");
 
-// create the count masks of nuclei and cells, which will be linked by its object index
-run("Wand Tool...", "tolerance=0 mode=Legacy");
+// remove non-connected objects
+for (x=0; x<widthRCC; x++) {
+	grayValue=0;
+	for (y=0; y<heightRCC; y++) {
+		selectImage("RCC");
+		grayValue+=getPixel(x, y);
+	}
+	print(grayValue);
+	if (grayValue == 0) {
+		setColor(0);
+		selectImage("nuc_count_mask");
+		floodFill(nucX[x], nucY[x],"8");
+	}
+}
+
+// index connected objects
 count=1;
 for (x=0; x<widthRCC; x++) {
 	for (y=0; y<heightRCC; y++) {
 		selectImage("RCC");
 		grayValue=getPixel(x, y);
-		if (grayValue != 255) {
-			setForegroundColor(count, count, count);
-			selectImage("binary_nuclei.tif");
-			doWand(nucX[x], nucY[x]);
-			roiManager("add");
+		if (grayValue>0 && grayValue <4 ) {
+			setColor(count);
+			if (grayValue ==1)  print("Potential non-unique PO between nucleus "+x+" and cell "+y);	
 			selectImage("nuc_count_mask");
-			roiManager("fill");
-			roiManager("reset");
-			selectImage("binary_cell.tif");
-			doWand(cellX[y], cellY[y]);
-			roiManager("add");
+			floodFill(nucX[x], nucY[x],"8");
 			selectImage("cell_count_mask");
-			roiManager("fill");
-			roiManager("reset");
+			floodFill(cellX[y], cellY[y],"8");			
 			count++;
 		}
 	}
 }
 
-//sort
-selectImage("binary_nuclei.tif");
-run("Select None");
-selectImage("binary_cell.tif");
-run("Select None");
-selectImage("nuc_count_mask");
-run("glasbey_inverted");
-selectImage("cell_count_mask");
-run("glasbey_inverted");
+// sort
 close("RCC");
 run("Tile");
