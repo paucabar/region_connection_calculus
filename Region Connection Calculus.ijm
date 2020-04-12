@@ -24,7 +24,7 @@ selectImage("RCC");
 
 getDimensions(widthRCC, heightRCC, channelsRCC, slicesRCC, framesRCC);
 
-// generate two 8-bit black images sizes as the binary images
+// duplicate binary masks as 16-bit images
 selectImage("binary_nuclei.tif");
 run("Duplicate...", "title=nuc_count_mask");
 run("16-bit");
@@ -34,18 +34,31 @@ run("Duplicate...", "title=cell_count_mask");
 run("16-bit");
 run("glasbey_inverted");
 
-// remove non-connected objects
+// remove non-connected objects (nuclei)
 for (x=0; x<widthRCC; x++) {
 	grayValue=0;
 	for (y=0; y<heightRCC; y++) {
 		selectImage("RCC");
 		grayValue+=getPixel(x, y);
 	}
-	print(grayValue);
 	if (grayValue == 0) {
 		setColor(0);
 		selectImage("nuc_count_mask");
 		floodFill(nucX[x], nucY[x],"8");
+	}
+}
+
+// remove non-connected objects (cells)
+for (y=0; y<heightRCC; y++) {
+	grayValue=0;
+	for (x=0; x<widthRCC; x++) {
+		selectImage("RCC");
+		grayValue+=getPixel(x, y);
+	}
+	if (grayValue == 0) {
+		setColor(0);
+		selectImage("cell_count_mask");
+		floodFill(cellX[y], cellY[y],"8");
 	}
 }
 
