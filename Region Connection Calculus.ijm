@@ -80,6 +80,9 @@ for (x=0; x<widthRCC; x++) {
 	}
 }
 
+// generate indexed cytoplasms
+imageCalculator("Subtract create", "cell_count_mask","nuc_count_mask");
+
 // sort
 close("RCC");
 run("Tile");
